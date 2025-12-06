@@ -1,0 +1,1283 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>3D Reaction Game • Portfolio Demo</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Poppins:wght@500;600;700&display=swap"
+      rel="stylesheet"
+    />
+
+    <!-- Three.js -->
+    <script src="https://unpkg.com/three@0.165.0/build/three.min.js"></script>
+
+    <style>
+      :root {
+        --bg: #0f172a;
+        --surface: #020617;
+        --surface-alt: #0b1220;
+        --surface-soft: #020617;
+        --border-soft: #1e293b;
+        --text-primary: #f1f5f9;
+        --text-secondary: #94a3b8;
+        --ready: #10b981;
+        --waiting: #f59e0b;
+        --results: #3b82f6;
+        --error: #ef4444;
+        --button: #1d4ed8;
+        --button-hover: #2563eb;
+        --button-border: #1e40af;
+        --radius-lg: 26px;
+        --radius-md: 18px;
+        --shadow-main: 0 26px 60px rgba(15, 23, 42, 0.95);
+        --shadow-soft: 0 18px 45px rgba(15, 23, 42, 0.9);
+        --transition-fast: 140ms ease-out;
+        --transition-med: 200ms ease-out;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      html,
+      body {
+        margin: 0;
+        padding: 0;
+        height: 100%;
+        background: radial-gradient(
+          circle at top,
+          #020617 0,
+          #020617 45%,
+          #020617 100%
+        );
+        color: var(--text-primary);
+        font-family: "Inter", system-ui, -apple-system, BlinkMacSystemFont,
+          "Segoe UI", sans-serif;
+      }
+
+      body {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        padding: 16px;
+      }
+
+      .header {
+        width: 100%;
+        max-width: 1120px;
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-end;
+        gap: 12px;
+        margin-bottom: 18px;
+        padding: 4px 4px 0;
+      }
+
+      .header-left h1 {
+        margin: 0;
+        font-family: "Poppins", system-ui, sans-serif;
+        font-size: clamp(1.4rem, 2.3vw, 1.9rem);
+        letter-spacing: 0.05em;
+        text-transform: uppercase;
+      }
+
+      .subtitle {
+        margin: 4px 0 0;
+        font-size: 0.9rem;
+        color: var(--text-secondary);
+      }
+
+      .status-pill {
+        padding: 6px 12px;
+        border-radius: 999px;
+        background: rgba(15, 23, 42, 0.96);
+        border: 1px solid rgba(51, 65, 85, 0.8);
+        font-size: 0.78rem;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        color: var(--text-secondary);
+      }
+
+      .status-dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 999px;
+        background: #6b7280;
+        box-shadow: 0 0 10px rgba(107, 114, 128, 0.75);
+        transition: background var(--transition-med),
+          box-shadow var(--transition-med), transform 140ms ease-out;
+      }
+
+      .status-pill[data-state="waiting"] .status-dot {
+        background: var(--waiting);
+        box-shadow: 0 0 18px rgba(245, 158, 11, 0.95);
+        transform: scale(1.05);
+      }
+
+      .status-pill[data-state="ready"] .status-dot {
+        background: var(--ready);
+        box-shadow: 0 0 18px rgba(16, 185, 129, 0.98);
+        transform: scale(1.1);
+      }
+
+      .status-pill[data-state="result"] .status-dot {
+        background: var(--results);
+        box-shadow: 0 0 18px rgba(59, 130, 246, 0.98);
+      }
+
+      .status-pill[data-state="error"] .status-dot {
+        background: var(--error);
+        box-shadow: 0 0 18px rgba(239, 68, 68, 0.98);
+      }
+
+      .status-main {
+        color: var(--text-primary);
+        font-weight: 500;
+      }
+
+      .status-sub {
+        color: var(--text-secondary);
+      }
+
+      .main-container {
+        width: 100%;
+        max-width: 1120px;
+        background: radial-gradient(
+          circle at top left,
+          rgba(37, 99, 235, 0.2),
+          rgba(15, 23, 42, 0.98)
+        );
+        border-radius: 32px;
+        padding: 22px 18px 18px;
+        border: 1px solid rgba(15, 23, 42, 1);
+        box-shadow: var(--shadow-main);
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+        position: relative;
+        overflow: hidden;
+      }
+
+      .main-container::before {
+        content: "";
+        position: absolute;
+        inset: -140px;
+        pointer-events: none;
+        background: radial-gradient(
+            circle at top left,
+            rgba(37, 99, 235, 0.2),
+            transparent 60%
+          ),
+          radial-gradient(
+            circle at bottom right,
+            rgba(16, 185, 129, 0.22),
+            transparent 60%
+          );
+        opacity: 0.6;
+      }
+
+      .content-inner {
+        position: relative;
+        z-index: 1;
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+      }
+
+      .game-box {
+        position: relative;
+        border-radius: var(--radius-lg);
+        background: radial-gradient(
+          circle at top,
+          #020617 0,
+          #020617 52%,
+          #020617 100%
+        );
+        border: 1px solid rgba(30, 64, 175, 0.45);
+        box-shadow: var(--shadow-soft);
+        overflow: hidden;
+        min-height: clamp(260px, 40vh, 360px);
+        display: flex;
+        flex-direction: column;
+        justify-content: stretch;
+      }
+
+      .game-box.waiting {
+        border-color: rgba(245, 158, 11, 0.7);
+        box-shadow: 0 0 0 1px rgba(15, 23, 42, 1),
+          0 24px 50px rgba(15, 23, 42, 0.9);
+      }
+
+      .game-box.ready {
+        border-color: rgba(16, 185, 129, 0.85);
+        box-shadow: 0 0 0 1px rgba(15, 23, 42, 1),
+          0 28px 60px rgba(16, 185, 129, 0.25);
+      }
+
+      .game-box.error {
+        border-color: rgba(239, 68, 68, 0.85);
+        box-shadow: 0 0 0 1px rgba(15, 23, 42, 1),
+          0 28px 60px rgba(239, 68, 68, 0.25);
+      }
+
+      .game-box.result {
+        border-color: rgba(59, 130, 246, 0.85);
+        box-shadow: 0 0 0 1px rgba(15, 23, 42, 1),
+          0 28px 60px rgba(59, 130, 246, 0.25);
+      }
+
+      #canvasContainer {
+        position: relative;
+        flex: 1;
+      }
+
+      .click-overlay {
+        position: absolute;
+        inset: 0;
+        cursor: pointer;
+        z-index: 5;
+      }
+
+      .error-message {
+        position: absolute;
+        inset-inline: 0;
+        bottom: 18px;
+        margin-inline: auto;
+        width: fit-content;
+        max-width: 320px;
+        background: rgba(127, 29, 29, 0.96);
+        border-radius: 999px;
+        padding: 6px 14px;
+        border: 1px solid rgba(239, 68, 68, 0.9);
+        color: #fee2e2;
+        font-size: 0.82rem;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        opacity: 0;
+        transform: translateY(8px);
+        pointer-events: none;
+        transition: opacity var(--transition-med),
+          transform var(--transition-med);
+        z-index: 6;
+      }
+
+      .error-message.visible {
+        opacity: 1;
+        transform: translateY(0);
+      }
+
+      .start-hint {
+        position: absolute;
+        inset: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        text-align: center;
+        z-index: 4;
+        color: var(--text-secondary);
+        font-size: 0.9rem;
+        pointer-events: none;
+        transition: opacity var(--transition-med),
+          transform var(--transition-med);
+      }
+
+      .start-hint.hidden {
+        opacity: 0;
+        transform: translateY(6px);
+      }
+
+      .start-hint .hint-pill {
+        padding: 10px 16px;
+        border-radius: 999px;
+        background: rgba(15, 23, 42, 0.96);
+        border: 1px solid rgba(30, 64, 175, 0.6);
+        box-shadow: 0 16px 34px rgba(15, 23, 42, 0.95);
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 0.86rem;
+      }
+
+      .start-hint strong {
+        color: var(--results);
+      }
+
+      .start-hint .desktop-only {
+        display: none;
+      }
+
+      @media (min-width: 640px) {
+        .start-hint .desktop-only {
+          display: inline;
+        }
+      }
+
+      .start-hint.ready .hint-pill {
+        border-color: rgba(16, 185, 129, 0.9);
+        color: var(--ready);
+        animation: goPulse 900ms ease-out infinite;
+      }
+
+      .start-hint.ready strong {
+        color: var(--ready);
+      }
+
+      @keyframes goPulse {
+        0% {
+          transform: scale(1);
+          box-shadow: 0 0 18px rgba(16, 185, 129, 0.8);
+        }
+        50% {
+          transform: scale(1.06);
+          box-shadow: 0 0 26px rgba(16, 185, 129, 1);
+        }
+        100% {
+          transform: scale(1);
+          box-shadow: 0 0 18px rgba(16, 185, 129, 0.8);
+        }
+      }
+
+      .instructions-overlay {
+        position: absolute;
+        inset: 0;
+        background: radial-gradient(
+          circle at top,
+          rgba(15, 23, 42, 0.97),
+          rgba(15, 23, 42, 0.97)
+        );
+        display: none;
+        z-index: 7;
+        padding: 18px 20px;
+        font-size: 0.9rem;
+      }
+
+      .instructions-overlay.open {
+        display: block;
+      }
+
+      .instructions-overlay h2 {
+        margin: 0 0 10px;
+        font-family: "Poppins", system-ui, sans-serif;
+        font-size: 1.05rem;
+      }
+
+      .instructions-grid {
+        display: grid;
+        grid-template-columns: minmax(0, 1.3fr) minmax(0, 1.2fr);
+        gap: 14px;
+      }
+
+      @media (max-width: 720px) {
+        .instructions-grid {
+          grid-template-columns: minmax(0, 1fr);
+        }
+      }
+
+      .instructions-list {
+        margin: 0;
+        padding-left: 18px;
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+      }
+
+      .instructions-list li {
+        color: var(--text-secondary);
+      }
+
+      .reaction-guide {
+        background: rgba(15, 23, 42, 0.96);
+        border-radius: 14px;
+        padding: 10px 12px;
+        border: 1px solid rgba(30, 64, 175, 0.65);
+      }
+
+      .reaction-guide h3 {
+        margin: 0 0 8px;
+        font-size: 0.9rem;
+      }
+
+      .reaction-item {
+        display: flex;
+        justify-content: space-between;
+        font-size: 0.82rem;
+        color: var(--text-secondary);
+        padding: 2px 0;
+      }
+
+      .instructions-actions {
+        margin-top: 10px;
+        display: flex;
+        justify-content: flex-end;
+      }
+
+      .instructions-actions button {
+        font-size: 0.82rem;
+      }
+
+      .score-display {
+        position: absolute;
+        right: 16px;
+        bottom: 16px;
+        min-width: 130px;
+        background: rgba(15, 23, 42, 0.96);
+        border-radius: 16px;
+        padding: 8px 12px;
+        border: 1px solid rgba(37, 99, 235, 0.7);
+        box-shadow: 0 16px 34px rgba(15, 23, 42, 0.98);
+        font-size: 0.78rem;
+        z-index: 6;
+      }
+
+      .score-value {
+        font-family: "Poppins", system-ui, sans-serif;
+        font-size: 1.1rem;
+        font-weight: 600;
+        color: var(--results);
+      }
+
+      .score-label {
+        margin-top: 2px;
+        color: var(--text-secondary);
+        text-transform: uppercase;
+        letter-spacing: 0.18em;
+        font-size: 0.68rem;
+      }
+
+      .score-rating {
+        margin-top: 4px;
+        font-size: 0.78rem;
+        color: var(--text-secondary);
+      }
+
+      .controls {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        margin-top: 4px;
+      }
+
+      @media (max-width: 640px) {
+        .controls {
+          flex-wrap: wrap;
+        }
+      }
+
+      button {
+        font-family: inherit;
+      }
+
+      .btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        padding: 8px 20px;
+        border-radius: 999px;
+        border: 1px solid transparent;
+        font-size: 0.9rem;
+        font-weight: 500;
+        cursor: pointer;
+        background: var(--surface-alt);
+        color: var(--text-primary);
+        transition: background var(--transition-fast),
+          box-shadow var(--transition-fast), transform 120ms ease-out,
+          border-color var(--transition-fast), opacity 120ms ease-out;
+      }
+
+      .btn-primary {
+        background: linear-gradient(135deg, var(--button), #1e40af);
+        border-color: var(--button-border);
+        box-shadow: 0 14px 26px rgba(37, 99, 235, 0.85);
+      }
+
+      .btn-primary:hover:not(:disabled) {
+        background: linear-gradient(135deg, var(--button-hover), #1d4ed8);
+        transform: translateY(-1px);
+        box-shadow: 0 18px 34px rgba(37, 99, 235, 0.95);
+      }
+
+      .btn-secondary {
+        background: rgba(15, 23, 42, 0.96);
+        border-color: #1f2937;
+        color: var(--text-secondary);
+        box-shadow: 0 10px 24px rgba(15, 23, 42, 0.95);
+      }
+
+      .btn-secondary:hover:not(:disabled) {
+        border-color: #374151;
+        color: var(--text-primary);
+        transform: translateY(-1px);
+      }
+
+      .btn-icon-only {
+        padding-inline: 10px;
+        min-width: 0;
+      }
+
+      .btn:disabled {
+        opacity: 0.55;
+        cursor: default;
+        box-shadow: none;
+        transform: none;
+      }
+
+      .stats-container {
+        margin-top: 8px;
+        background: #020617;
+        border-radius: 18px;
+        padding: 12px 14px;
+        border: 1px solid rgba(10, 16, 30, 0.9);
+        box-shadow: 0 -10px 35px rgba(15, 23, 42, 0.95);
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 12px;
+      }
+
+      @media (max-width: 640px) {
+        .stats-container {
+          grid-template-columns: minmax(0, 1fr);
+        }
+      }
+
+      .stat-block {
+        text-align: center;
+      }
+
+      .stat-value {
+        font-family: "Poppins", system-ui, sans-serif;
+        font-size: 1.1rem;
+        font-weight: 600;
+      }
+
+      .stat-label {
+        margin-top: 2px;
+        font-size: 0.7rem;
+        letter-spacing: 0.18em;
+        text-transform: uppercase;
+        color: var(--text-secondary);
+      }
+
+      .sr-only {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        padding: 0;
+        margin: -1px;
+        overflow: hidden;
+        clip: rect(0, 0, 0, 0);
+        white-space: nowrap;
+        border: 0;
+      }
+    </style>
+  </head>
+  <body>
+    <header class="header">
+      <div class="header-left">
+        <h1>Reaction Game</h1>
+        <p class="subtitle">Test your reflexes with a Three.js visual cue</p>
+      </div>
+      <div
+        class="status-pill"
+        id="statusPill"
+        data-state="idle"
+        aria-live="polite"
+      >
+        <div class="status-dot" aria-hidden="true"></div>
+        <div>
+          <div class="status-main" id="statusLabel">Idle</div>
+          <div class="status-sub" id="statusDetail">
+            Click the box or press SPACE to start
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <main class="main-container">
+      <div class="content-inner">
+        <section class="game-box idle" id="gameBox">
+          <div id="canvasContainer"></div>
+          <div
+            class="click-overlay"
+            id="clickOverlay"
+            aria-label="Click when the shape turns green"
+          ></div>
+
+          <div class="start-hint" id="startHint">
+            <div class="hint-pill">
+              Click here
+              <span class="desktop-only">or press <strong>SPACE</strong></span>
+              to start
+            </div>
+          </div>
+
+          <div class="error-message" id="errorMessage">
+            ⚠️ <span>Too early! False start.</span>
+          </div>
+
+          <div class="instructions-overlay" id="instructionsOverlay">
+            <h2>How to Play</h2>
+            <div class="instructions-grid">
+              <ul class="instructions-list">
+                <li>
+                  🖱️ Click the box
+                  <span class="desktop-only"
+                    >or press <strong>SPACE</strong></span
+                  >
+                  to start.
+                </li>
+                <li>
+                  🟠 Watch the 3D shape glow
+                  <strong style="color: #f59e0b">orange</strong> while you wait.
+                </li>
+                <li>
+                  🟢 When it turns
+                  <strong style="color: #10b981">green</strong> and the center
+                  pill says <strong>GO</strong>, react!
+                </li>
+                <li>
+                  ⚠️ Clicking before it turns green counts as a
+                  <strong>false start</strong>.
+                </li>
+                <li>
+                  📊 Your last time, best time, and average update live below.
+                </li>
+              </ul>
+              <div class="reaction-guide">
+                <h3>Reaction Time Guide</h3>
+                <div class="reaction-item">
+                  <span>⚡ <strong>Amazing</strong></span
+                  ><span>&lt; 200ms</span>
+                </div>
+                <div class="reaction-item">
+                  <span>🎯 <strong>Very Good</strong></span
+                  ><span>200–250ms</span>
+                </div>
+                <div class="reaction-item">
+                  <span>✅ <strong>Good</strong></span
+                  ><span>250–300ms</span>
+                </div>
+                <div class="reaction-item">
+                  <span>👍 <strong>Average</strong></span
+                  ><span>300–400ms</span>
+                </div>
+                <div class="reaction-item">
+                  <span>🐌 <strong>Below Average</strong></span
+                  ><span>&gt; 400ms</span>
+                </div>
+              </div>
+            </div>
+            <div class="instructions-actions">
+              <button
+                type="button"
+                class="btn btn-secondary btn-small"
+                id="closeInstructionsBtn"
+              >
+                Got it
+              </button>
+            </div>
+          </div>
+
+          <div id="scoreDisplay" class="score-display">
+            <div class="score-value" id="scoreValue">0ms</div>
+            <div class="score-label">Last reaction</div>
+            <div class="score-rating" id="scoreRating">
+              Complete a run to see your rating.
+            </div>
+          </div>
+        </section>
+
+        <section class="controls" aria-label="Game controls">
+          <button id="startBtn" class="btn btn-primary" type="button">
+            <span class="btn-icon" aria-hidden="true">▶</span>
+            <span id="startBtnLabel">Start Game</span>
+          </button>
+          <button id="resetBtn" class="btn btn-secondary" type="button">
+            <span class="btn-icon" aria-hidden="true">↺</span>
+            Reset Stats
+          </button>
+          <button
+            id="infoBtn"
+            class="btn btn-secondary btn-icon-only"
+            type="button"
+            aria-label="Instructions"
+          >
+            <span aria-hidden="true">?</span>
+          </button>
+        </section>
+
+        <section class="stats-container" aria-label="Session statistics">
+          <div class="stat-block">
+            <span class="stat-value" id="attemptsStat">0</span>
+            <span class="stat-label">Attempts</span>
+          </div>
+          <div class="stat-block">
+            <span class="stat-value" id="bestStat">-</span>
+            <span class="stat-label">Best Time</span>
+          </div>
+          <div class="stat-block">
+            <span class="stat-value" id="avgStat">-</span>
+            <span class="stat-label">Average</span>
+          </div>
+        </section>
+      </div>
+    </main>
+
+    <script>
+      (function () {
+        "use strict";
+
+        const GameState = Object.freeze({
+          IDLE: "idle",
+          WAITING: "waiting",
+          READY: "ready",
+          RESULT: "result",
+          ERROR: "error",
+        });
+
+        /**
+         * Three.js scene controller: creates a simple 3D gem as the visual cue.
+         */
+        class ThreeScene {
+          constructor(container) {
+            this.container = container;
+            this.renderer = null;
+            this.scene = null;
+            this.camera = null;
+            this.gem = null;
+            this.ring = null;
+            this.clock = null;
+            this.frameId = null;
+
+            this._targetScale = 1.0;
+            this._rotationSpeed = 0.7;
+            this._ringSpeed = 0.4;
+
+            this._onResize = this._onResize.bind(this);
+            this._animate = this._animate.bind(this);
+
+            this._init();
+          }
+
+          _init() {
+            if (!window.THREE) {
+              console.error("Three.js is not available.");
+              return;
+            }
+
+            const width = this.container.clientWidth;
+            const height = this.container.clientHeight || width * 0.55;
+            const aspect = width && height ? width / height : 16 / 9;
+
+            this.renderer = new THREE.WebGLRenderer({
+              antialias: true,
+              alpha: true,
+            });
+            this.renderer.setPixelRatio(
+              Math.min(window.devicePixelRatio || 1.5, 2)
+            );
+            this.renderer.setSize(width, height, false);
+            this.container.appendChild(this.renderer.domElement);
+
+            this.scene = new THREE.Scene();
+            this.scene.background = new THREE.Color(0x020617);
+
+            this.camera = new THREE.PerspectiveCamera(38, aspect, 0.1, 100);
+            this.camera.position.set(0, 1.2, 4.2);
+
+            const hemi = new THREE.HemisphereLight(0x94a3b8, 0x020617, 0.9);
+            hemi.position.set(0, 2, 0);
+            this.scene.add(hemi);
+
+            const dir = new THREE.DirectionalLight(0xf9fafb, 1.0);
+            dir.position.set(2.5, 4, 3);
+            this.scene.add(dir);
+
+            const gemGeom = new THREE.DodecahedronGeometry(1.1, 1);
+            const gemMat = new THREE.MeshStandardMaterial({
+              color: 0x1f2937,
+              roughness: 0.2,
+              metalness: 0.65,
+              envMapIntensity: 1.0,
+            });
+            this.gem = new THREE.Mesh(gemGeom, gemMat);
+            this.gem.position.set(0.1, 0.35, 0);
+            this.scene.add(this.gem);
+
+            const ringGeom = new THREE.TorusGeometry(1.7, 0.08, 18, 80);
+            const ringMat = new THREE.MeshStandardMaterial({
+              color: 0x1d4ed8,
+              emissive: 0x1d4ed8,
+              emissiveIntensity: 0.45,
+              roughness: 0.35,
+              metalness: 0.7,
+            });
+            this.ring = new THREE.Mesh(ringGeom, ringMat);
+            this.ring.rotation.x = Math.PI / 2.1;
+            this.ring.position.y = 0.1;
+            this.scene.add(this.ring);
+
+            const floorGeo = new THREE.PlaneGeometry(16, 16);
+            const floorMat = new THREE.MeshStandardMaterial({
+              color: 0x020617,
+              roughness: 0.9,
+              metalness: 0.1,
+            });
+            const floor = new THREE.Mesh(floorGeo, floorMat);
+            floor.rotation.x = -Math.PI / 2;
+            floor.position.y = -0.4;
+            floor.receiveShadow = true;
+            this.scene.add(floor);
+
+            this.clock = new THREE.Clock();
+
+            window.addEventListener("resize", this._onResize);
+            this._animate();
+          }
+
+          _onResize() {
+            if (!this.renderer || !this.camera) return;
+            const width = this.container.clientWidth;
+            const height = this.container.clientHeight || width * 0.55;
+            this.renderer.setSize(width, height, false);
+            this.camera.aspect = width && height ? width / height : 16 / 9;
+            this.camera.updateProjectionMatrix();
+          }
+
+          _animate() {
+            if (!this.renderer || !this.scene || !this.camera) return;
+            this.frameId = requestAnimationFrame(this._animate);
+
+            const delta = this.clock.getDelta();
+            const t = this.clock.getElapsedTime();
+
+            const currentScale = this.gem.scale.x || 1;
+            const lerpFactor = 0.08;
+            const nextScale =
+              currentScale + (this._targetScale - currentScale) * lerpFactor;
+            this.gem.scale.set(nextScale, nextScale, nextScale);
+
+            this.gem.rotation.y += this._rotationSpeed * delta;
+            this.gem.rotation.x += this._rotationSpeed * 0.35 * delta;
+
+            this.ring.rotation.z += this._ringSpeed * delta;
+
+            const bobAmplitude = 0.05;
+            const bobSpeed = 2.0;
+            this.gem.position.y = 0.35 + Math.sin(t * bobSpeed) * bobAmplitude;
+
+            this.renderer.render(this.scene, this.camera);
+          }
+
+          setState(state) {
+            if (!this.gem || !this.ring) return;
+            const mat = this.gem.material;
+            const ringMat = this.ring.material;
+
+            switch (state) {
+              case GameState.WAITING:
+                mat.color.setStyle("#F59E0B");
+                mat.emissive?.setStyle("#92400E");
+                mat.emissiveIntensity = 0.35;
+                this._targetScale = 1.0;
+                this._rotationSpeed = 0.5;
+                this._ringSpeed = 0.25;
+                ringMat.color.setStyle("#FBBF24");
+                ringMat.emissive.setStyle("#F59E0B");
+                ringMat.emissiveIntensity = 0.35;
+                break;
+              case GameState.READY:
+                mat.color.setStyle("#10B981");
+                mat.emissive?.setStyle("#22C55E");
+                mat.emissiveIntensity = 0.8;
+                this._targetScale = 1.2;
+                this._rotationSpeed = 1.5;
+                this._ringSpeed = 0.7;
+                ringMat.color.setStyle("#22C55E");
+                ringMat.emissive.setStyle("#22C55E");
+                ringMat.emissiveIntensity = 0.6;
+                break;
+              case GameState.ERROR:
+                mat.color.setStyle("#EF4444");
+                mat.emissive?.setStyle("#B91C1C");
+                mat.emissiveIntensity = 0.7;
+                this._targetScale = 0.96;
+                this._rotationSpeed = 1.6;
+                this._ringSpeed = -0.9;
+                ringMat.color.setStyle("#EF4444");
+                ringMat.emissive.setStyle("#EF4444");
+                ringMat.emissiveIntensity = 0.65;
+                break;
+              case GameState.RESULT:
+                mat.color.setStyle("#3B82F6");
+                mat.emissive?.setStyle("#1D4ED8");
+                mat.emissiveIntensity = 0.6;
+                this._targetScale = 1.05;
+                this._rotationSpeed = 0.9;
+                this._ringSpeed = 0.4;
+                ringMat.color.setStyle("#1D4ED8");
+                ringMat.emissive.setStyle("#1D4ED8");
+                ringMat.emissiveIntensity = 0.5;
+                break;
+              default:
+                mat.color.setStyle("#1F2937");
+                mat.emissive?.setStyle("#020617");
+                mat.emissiveIntensity = 0.3;
+                this._targetScale = 1.0;
+                this._rotationSpeed = 0.7;
+                this._ringSpeed = 0.4;
+                ringMat.color.setStyle("#1D4ED8");
+                ringMat.emissive.setStyle("#1D4ED8");
+                ringMat.emissiveIntensity = 0.45;
+            }
+          }
+
+          destroy() {
+            try {
+              window.removeEventListener("resize", this._onResize);
+              if (this.frameId) cancelAnimationFrame(this.frameId);
+              if (this.scene) {
+                this.scene.traverse((obj) => {
+                  if (!obj.isMesh) return;
+                  if (obj.geometry) obj.geometry.dispose();
+                  if (obj.material) {
+                    if (Array.isArray(obj.material)) {
+                      obj.material.forEach((m) => m.dispose && m.dispose());
+                    } else {
+                      obj.material.dispose && obj.material.dispose();
+                    }
+                  }
+                });
+              }
+              if (this.renderer) this.renderer.dispose();
+            } catch (err) {
+              console.warn("Three.js cleanup error", err);
+            }
+          }
+        }
+
+        /**
+         * Reaction game core logic + DOM wiring.
+         */
+        class ReactionGame {
+          constructor() {
+            this.state = GameState.IDLE;
+            this.timeoutId = null;
+            this.stimulusAt = null;
+
+            this.attempts = 0;
+            this.totalTime = 0;
+            this.bestTime = null;
+            this.falseStarts = 0;
+            this.lastTime = 0;
+
+            // DOM refs
+            this.gameBox = document.getElementById("gameBox");
+            this.canvasContainer = document.getElementById("canvasContainer");
+            this.clickOverlay = document.getElementById("clickOverlay");
+            this.errorMessage = document.getElementById("errorMessage");
+            this.startHint = document.getElementById("startHint");
+            this.instructionsOverlay = document.getElementById(
+              "instructionsOverlay"
+            );
+            this.scoreValue = document.getElementById("scoreValue");
+            this.scoreRating = document.getElementById("scoreRating");
+
+            this.statusPill = document.getElementById("statusPill");
+            this.statusLabel = document.getElementById("statusLabel");
+            this.statusDetail = document.getElementById("statusDetail");
+
+            this.startBtn = document.getElementById("startBtn");
+            this.startBtnLabel = document.getElementById("startBtnLabel");
+            this.resetBtn = document.getElementById("resetBtn");
+            this.infoBtn = document.getElementById("infoBtn");
+            this.closeInstructionsBtn = document.getElementById(
+              "closeInstructionsBtn"
+            );
+
+            this.attemptsStat = document.getElementById("attemptsStat");
+            this.bestStat = document.getElementById("bestStat");
+            this.avgStat = document.getElementById("avgStat");
+
+            this._bindEvents();
+
+            this.scene = new ThreeScene(this.canvasContainer);
+            this._setState(GameState.IDLE);
+          }
+
+          _bindEvents() {
+            this.clickOverlay.addEventListener("click", () =>
+              this._handleClickOrSpace()
+            );
+            this.startBtn.addEventListener("click", () =>
+              this._handleStartButton()
+            );
+            this.resetBtn.addEventListener("click", () => this.reset());
+            this.infoBtn.addEventListener("click", () =>
+              this._toggleInstructions(true)
+            );
+            this.closeInstructionsBtn.addEventListener("click", () =>
+              this._toggleInstructions(false)
+            );
+
+            document.addEventListener("keydown", (e) => {
+              if (e.repeat) return;
+              if (e.code === "Space") {
+                e.preventDefault();
+                this._handleClickOrSpace();
+              } else if (e.key === "r" || e.key === "R") {
+                this.reset();
+              } else if (e.key === "Escape") {
+                this._toggleInstructions(false);
+              }
+            });
+
+            document.addEventListener("visibilitychange", () => {
+              if (
+                document.hidden &&
+                (this.state === GameState.WAITING ||
+                  this.state === GameState.READY)
+              ) {
+                this._cancelRun(false);
+                this._setState(GameState.IDLE, {
+                  detail: "Run cancelled while tab was hidden",
+                });
+              }
+            });
+
+            window.addEventListener("beforeunload", () => {
+              this._clearTimeout();
+              this.scene && this.scene.destroy();
+            });
+          }
+
+          _toggleInstructions(open) {
+            if (!this.instructionsOverlay) return;
+            this.instructionsOverlay.classList.toggle("open", open);
+          }
+
+          _handleStartButton() {
+            if (
+              this.state === GameState.WAITING ||
+              this.state === GameState.READY
+            ) {
+              this._cancelRun(true);
+            } else {
+              this._startRun();
+            }
+          }
+
+          _handleClickOrSpace() {
+            if (
+              this.state === GameState.IDLE ||
+              this.state === GameState.RESULT ||
+              this.state === GameState.ERROR
+            ) {
+              this._startRun();
+            } else if (this.state === GameState.WAITING) {
+              this._registerFalseStart();
+            } else if (this.state === GameState.READY) {
+              this._registerReaction();
+            }
+          }
+
+          _startRun() {
+            if (
+              this.state === GameState.WAITING ||
+              this.state === GameState.READY
+            )
+              return;
+
+            this._clearTimeout();
+            this.stimulusAt = null;
+            this.errorMessage.classList.remove("visible");
+            this._setState(GameState.WAITING);
+
+            const delay = 1000 + Math.random() * 4000; // 1–5s
+            this.timeoutId = setTimeout(() => {
+              this.timeoutId = null;
+              this.stimulusAt = performance.now();
+              this._setState(GameState.READY);
+            }, delay);
+          }
+
+          _cancelRun(userIntent) {
+            if (
+              this.state !== GameState.WAITING &&
+              this.state !== GameState.READY
+            )
+              return;
+            this._clearTimeout();
+            this.stimulusAt = null;
+            this._setState(GameState.IDLE, {
+              detail: userIntent
+                ? "Run cancelled – click the box to start again"
+                : "Click the box or press SPACE to start",
+            });
+          }
+
+          _registerFalseStart() {
+            this.falseStarts += 1;
+            this._clearTimeout();
+            this.stimulusAt = null;
+            this.errorMessage.classList.add("visible");
+            this._setState(GameState.ERROR);
+            setTimeout(() => {
+              this.errorMessage.classList.remove("visible");
+            }, 1000);
+          }
+
+          _registerReaction() {
+            if (!this.stimulusAt) {
+              console.warn("Missing stimulus timestamp; ignoring.");
+              return;
+            }
+            const now = performance.now();
+            const reaction = now - this.stimulusAt;
+            this.stimulusAt = null;
+            this._recordResult(reaction);
+          }
+
+          _recordResult(ms) {
+            this.lastTime = ms;
+            this.attempts += 1;
+            this.totalTime += ms;
+            if (this.bestTime == null || ms < this.bestTime) {
+              this.bestTime = ms;
+            }
+
+            const rounded = Math.round(ms);
+            this.scoreValue.textContent = `${rounded}ms`;
+            this.scoreRating.textContent = this._ratingFor(rounded);
+
+            this.attemptsStat.textContent = this.attempts;
+            this.bestStat.textContent = `${Math.round(this.bestTime)}ms`;
+            const avg = this.totalTime / this.attempts;
+            this.avgStat.textContent = `${Math.round(avg)}ms`;
+
+            this._setState(GameState.RESULT);
+          }
+
+          _ratingFor(ms) {
+            if (ms < 200) return "⚡ Amazing – esports level reflexes.";
+            if (ms < 250) return "🎯 Very good – well above average.";
+            if (ms < 300) return "✅ Good – solid reaction speed.";
+            if (ms < 400) return "👍 Average – typical human response.";
+            return "🐌 Below average – try a few warm-up runs and focus on the GO cue.";
+          }
+
+          _clearTimeout() {
+            if (this.timeoutId != null) {
+              clearTimeout(this.timeoutId);
+              this.timeoutId = null;
+            }
+          }
+
+          reset() {
+            this._clearTimeout();
+            this.stimulusAt = null;
+            this.attempts = 0;
+            this.totalTime = 0;
+            this.bestTime = null;
+            this.falseStarts = 0;
+            this.lastTime = 0;
+
+            this.scoreValue.textContent = "0ms";
+            this.scoreRating.textContent = "Complete a run to see your rating.";
+            this.attemptsStat.textContent = "0";
+            this.bestStat.textContent = "-";
+            this.avgStat.textContent = "-";
+            this.errorMessage.classList.remove("visible");
+
+            this._setState(GameState.IDLE, {
+              detail: "Click the box or press SPACE to start",
+            });
+          }
+
+          _setState(state, overrides = {}) {
+            this.state = state;
+
+            const labels = {
+              [GameState.IDLE]: "Idle",
+              [GameState.WAITING]: "Get ready",
+              [GameState.READY]: "React now",
+              [GameState.RESULT]: "Result",
+              [GameState.ERROR]: "False start",
+            };
+            const details = {
+              [GameState.IDLE]: "Click the box or press SPACE to start",
+              [GameState.WAITING]: "Random delay active – don’t click yet",
+              [GameState.READY]: "Shape is green – react!",
+              [GameState.RESULT]: "Check your time, then run again",
+              [GameState.ERROR]: "Clicked too early – wait for green next time",
+            };
+
+            this.statusLabel.textContent = overrides.label || labels[state];
+            this.statusDetail.textContent = overrides.detail || details[state];
+            this.statusPill.dataset.state = state;
+
+            this.gameBox.classList.remove(
+              "idle",
+              "waiting",
+              "ready",
+              "result",
+              "error"
+            );
+            const stateClass = state === GameState.IDLE ? "idle" : state;
+            this.gameBox.classList.add(stateClass);
+
+            // center hint text
+            if (state === GameState.IDLE) {
+              this.startHint.classList.remove("hidden", "ready");
+              this.startHint.innerHTML =
+                '<div class="hint-pill">Click here <span class="desktop-only">or press <strong>SPACE</strong></span> to start</div>';
+            } else if (state === GameState.WAITING) {
+              this.startHint.classList.remove("hidden", "ready");
+              this.startHint.innerHTML =
+                '<div class="hint-pill">Wait for <strong>green</strong> – don’t click yet</div>';
+            } else if (state === GameState.READY) {
+              this.startHint.classList.remove("hidden");
+              this.startHint.classList.add("ready");
+              this.startHint.innerHTML =
+                '<div class="hint-pill"><strong>GO!</strong> Click now</div>';
+            } else {
+              this.startHint.classList.add("hidden");
+            }
+
+            this.startBtnLabel.textContent =
+              state === GameState.WAITING || state === GameState.READY
+                ? "Cancel Run"
+                : "Start Game";
+
+            this.scene && this.scene.setState(state);
+          }
+        }
+
+        function bootstrap() {
+          try {
+            new ReactionGame();
+          } catch (err) {
+            console.error("Initialization error", err);
+            const msg = document.getElementById("statusDetail");
+            if (msg)
+              msg.textContent =
+                "Unexpected error initialising the game. Please refresh.";
+          }
+        }
+
+        if (document.readyState === "loading") {
+          document.addEventListener("DOMContentLoaded", bootstrap);
+        } else {
+          bootstrap();
+        }
+      })();
+    </script>
+  </body>
+</html>
